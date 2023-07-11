@@ -1,4 +1,7 @@
-// Collect The Square game
+<canvas id="canvas" width="600" height="400" tabindex="1"></canvas>
+
+<script>// Collect The Square game
+
 
 // Get a reference to the canvas DOM element
 var canvas = document.getElementById('canvas');
@@ -24,6 +27,19 @@ var left = false;
 var targetX = 0;
 var targetY = 0;
 var targetLength = 25;
+
+// Properties for obstacles
+var obstacleX = 0;
+var obstacleY = 0;
+var obstacleLength = 40;
+
+// Power-up properties
+var powerUpX = 0;
+var powerUpY = 0;
+var powerUpLength = 25;
+var powerUpActive = false;
+var powerUpDuration = 5; // Duration in seconds
+var powerUpTimer = 0; // Timer for power-up duration
 
 // Determine if number a is within the range b to c (exclusive)
 function isWithin(a, b, c) {
@@ -96,6 +112,10 @@ function startGame() {
   canvas.removeEventListener('click', startGame);
   // Put the target at a random starting point
 	moveTarget();
+  // Put the obstacle at a random starting point
+  moveObstacle();
+  // Put the power-up at a random starting point
+  movePowerUp();
   // Kick off the draw loop
   draw();
 }
@@ -116,6 +136,18 @@ function endGame() {
 function moveTarget() {
   targetX = Math.round(Math.random() * canvas.width - targetLength);
   targetY = Math.round(Math.random() * canvas.height - targetLength)
+}
+
+// Move the obstacle square to a random position
+function moveObstacle() {
+  obstacleX = Math.round(Math.random() * canvas.width - obstacleLength);
+  obstacleY = Math.round(Math.random() * canvas.height - obstacleLength)
+}
+
+// Move the power-up square to a random position
+function movePowerUp() {
+  powerUpX = Math.round(Math.random() * canvas.width - powerUpLength);
+  powerUpY = Math.round(Math.random() * canvas.height - powerUpLength)
 }
 
 // Clear the canvas
@@ -162,12 +194,48 @@ function draw() {
       score++;
     }
   }
+  // Collide with the obstacle
+  if (isWithin(obstacleX, x, x + sideLength) || isWithin(obstacleX + obstacleLength, x, x + sideLength)) { // X
+    if (isWithin(obstacleY, y, y + sideLength) || isWithin(obstacleY + obstacleLength, y, y + sideLength)) { // Y
+      // End the game if the obstacle is collided
+      endGame();
+      return;
+    }
+  }
+  // Collide with the power-up
+  if (!powerUpActive && (isWithin(powerUpX, x, x + sideLength) || isWithin(powerUpX + powerUpLength, x, x + sideLength))) { // X
+    if (isWithin(powerUpY, y, y + sideLength) || isWithin(powerUpY + powerUpLength, y, y + sideLength)) { // Y
+      // Respawn the power-up
+      movePowerUp();
+      // Activate the power-up
+      powerUpActive = true;
+      // Start the power-up timer
+      powerUpTimer = powerUpDuration;
+      // Increase the score
+      score += 2;
+    }
+  }
+  // Update power-up timer
+  if (powerUpActive) {
+    powerUpTimer -= 1 / 60; // Decrease the timer based on the frame rate (assumed 60fps)
+    if (powerUpTimer <= 0) {
+      powerUpActive = false;
+    }
+  }
   // Draw the square
   context.fillStyle = '#FF0000';
   context.fillRect(x, y, sideLength, sideLength);
   // Draw the target 
   context.fillStyle = '#00FF00';
   context.fillRect(targetX, targetY, targetLength, targetLength);
+  // Draw the obstacle
+  context.fillStyle = '#0000FF';
+  context.fillRect(obstacleX, obstacleY, obstacleLength, obstacleLength);
+  // Draw the power-up
+  if (powerUpActive) {
+    context.fillStyle = '#FFFF00';
+    context.fillRect(powerUpX, powerUpY, powerUpLength, powerUpLength);
+  }
   // Draw the score and time remaining
   context.fillStyle = '#000000';
   context.font = '24px Arial';
@@ -185,3 +253,5 @@ function draw() {
 // Start the game
 menu();
 canvas.focus();
+
+</script>

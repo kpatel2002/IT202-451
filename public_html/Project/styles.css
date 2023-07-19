@@ -1,0 +1,44 @@
+.alert-success {
+    background-color: blue;
+    color: white;
+}
+
+.alert-warning {
+    background-color: orange;
+    color: black;
+}
+
+.alert-danger {
+    background-color: purple;
+    color: white;
+}
+
+.alert-info {
+    background-color: cyan;
+    color: black;
+}
+
+nav li {
+    display: block;
+    background-color: lightgray;
+    margin-bottom: 10px;
+    padding: 5px;
+}
+
+nav li a {
+    color: navy;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+input {
+    border-radius: 5px;
+    border: 2px solid black;
+    padding: 8px;
+}
+
+body {
+    background-color: lightblue;
+    color: darkblue;
+    font-family: Arial, sans-serif;
+}

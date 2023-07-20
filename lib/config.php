@@ -23,8 +23,8 @@ if (!$db_url || count($db_url) === 0) {
     $db_url["pass"] = $matches[2];
     $db_url["path"] = "/" . $matches[5];
 }
-$dbhost   = $db_url["host"];
+$dbhost = $db_url["host"];
 $dbuser = $db_url["user"];
 $dbpass = $db_url["pass"];
-$dbdatabase       = substr($db_url["path"],1);
+$dbdatabase = substr($db_url["path"],1);
 ?>

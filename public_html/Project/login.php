@@ -1,118 +1,82 @@
-<?php
-require_once(__DIR__ . "/../../partials/nav.php");
-?>
-<form onsubmit="return validate(this)" method="POST">
-    <div>
-        <label for="email">Email/Username</label>
-        <input type="text" name="email" required />
-    </div>
-    <div>
-        <label for="pw">Password</label>
-        <input type="password" id="pw" name="password" required minlength="8" />
-    </div>
-    <input type="submit" value="Login" />
-</form>
-<script>
-    function validate(form) {
-        //TODO 1: implement JavaScript validation
-        //ensure it returns false for an error and true for success
-        let isValid = true;
-        const email = form.email.value;
-        const password = form.password.value;
-        if (email.indexOf("@") > -1) {
-            if (!isValidEmail(email)) {
-                flash("Invalid email", "danger");
-                isValid = false;
-            }
-        } else {
-            if (!isValidUsername(email)) {
-                flash("Username must be lowercase, 3-16 characters, and contain only a-z, 0-9, _ or -", "danger");
-                isValid = false;
-            }
-        }
-        if (!isValidPassword(password)) {
-            flash("Password too short", "danger");
-            isValid = false;
-        }
-        return isValid;
-    }
-</script>
-<?php
-//TODO 2: add PHP Code
-if (isset($_POST["email"]) && isset($_POST["password"])) {
-    $email = se($_POST, "email", "", false); //$_POST["email"];
-    $password = se($_POST, "password", "", false); //$_POST["password"];
+<?php require_once(__DIR__ . "/partials/nav.php"); ?>
+    <form method="POST">
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required/>
+        <label for="p1">Password:</label>
+        <input type="password" id="p1" name="password" required/>
+        <input type="submit" name="login" value="Login"/>
+    </form>
 
-    //TODO 3
-    $hasError = false;
-    if (empty($email)) {
-        flash("Email must be provided <br>");
-        $hasError = true;
+<?php
+if (isset($_POST["login"])) {
+    $email = null;
+    $password = null;
+    if (isset($_POST["email"])) {
+        $email = $_POST["email"];
     }
-    if (str_contains($email, "@")) {
-        //sanitize
-        $email = sanitize_email($email);
-        //validate
-        if (!is_valid_email($email)) {
-            flash("Invalid email address");
-            $hasError = true;
-        }
-    } else {
-        if (!is_valid_username($email)) {
-            flash("Invalid username");
-            $hasError = true;
-        }
+    if (isset($_POST["password"])) {
+        $password = $_POST["password"];
     }
-    if (empty($password)) {
-        flash("Password must be provided <br>");
-        $hasError = true;
+    $isValid = true;
+    if (!isset($email) || !isset($password)) {
+        $isValid = false;
+        flash("Email or password missing");
     }
-    if (strlen($password) < 8) {
-        flash("Password must be at least 8 characters long <br>");
-        $hasError = true;
+    if (!strpos($email, "@")) {
+        $isValid = false;
+        //echo "<br>Invalid email<br>";
+        flash("Invalid email");
     }
-    if (!$hasError) {
-        //TODO 4
+    if ($isValid) {
         $db = getDB();
-        $stmt = $db->prepare("SELECT id, email, username, password from Users where email = :email or username=:email");
-        try {
-            $r = $stmt->execute([":email" => $email]);
-            if ($r) {
-                $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($user) {
-                    $hash = $user["password"];
-                    unset($user["password"]);
-                    if (password_verify($password, $hash)) {
-                        $_SESSION["user"] = $user;
-                        try {
-                            //lookup potential roles
-                            $stmt = $db->prepare("SELECT Roles.name FROM Roles 
-                        JOIN UserRoles on Roles.id = UserRoles.role_id 
-                        where UserRoles.user_id = :user_id and Roles.is_active = 1 and UserRoles.is_active = 1");
-                            $stmt->execute([":user_id" => $user["id"]]);
-                            $roles = $stmt->fetchAll(PDO::FETCH_ASSOC); //fetch all since we'll want multiple
-                        } catch (Exception $e) {
-                            error_log(var_export($e, true));
-                        }
-                        //save roles or empty array
-                        if (isset($roles)) {
-                            $_SESSION["user"]["roles"] = $roles; //at least 1 role
-                        } else {
-                            $_SESSION["user"]["roles"] = []; //no roles
-                        }
-                        flash("Welcome, " . get_username());
-                        die(header("Location: home.php"));
-                    } else {
-                        flash("Invalid password");
+        if (isset($db)) {
+            
+            $stmt = $db->prepare("SELECT id, email, username, name, password from Users WHERE email = :email LIMIT 1");
+            $stmt = $db->prepare("SELECT id, email, username, password from Users WHERE email = :email LIMIT 1");
+
+
+            $params = array(":email" => $email);
+            $r = $stmt->execute($params);
+            //echo "db returned: " . var_export($r, true);
+            $e = $stmt->errorInfo();
+            if ($e[0] != "00000") {
+                //echo "uh oh something went wrong: " . var_export($e, true);
+                flash("Something went wrong, please try again");
+            }
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($result && isset($result["password"])) {
+                $password_hash_from_db = $result["password"];
+                if (password_verify($password, $password_hash_from_db)) {
+                    $stmt = $db->prepare("
+SELECT Roles.name FROM Roles JOIN UserRoles on Roles.id = UserRoles.role_id where UserRoles.user_id = :user_id and Roles.is_active = 1 and UserRoles.is_active = 1");
+                    $stmt->execute([":user_id" => $result["id"]]);
+                    $roles = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+                    unset($result["password"]);//remove password so we don't leak it beyond this page
+                    //let's create a session for our user based on the other data we pulled from the table
+                    $_SESSION["user"] = $result;//we can save the entire result array since we removed password
+                    if ($roles) {
+                        $_SESSION["user"]["roles"] = $roles;
                     }
-                } else {
-                    flash("Email not found");
+                    else {
+                        $_SESSION["user"]["roles"] = [];
+                    }
+                    //on successful login let's serve-side redirect the user to the home page.
+                    flash("Log in successful");
+                    die(header("Location: home.php"));
+                }
+                else {
+                    flash("Invalid password");
                 }
             }
-        } catch (Exception $e) {
-            flash("<pre>" . var_export($e, true) . "</pre>");
+            else {
+                flash("Invalid user");
+            }
         }
+    }
+    else {
+        flash("There was a validation issue");
     }
 }
 ?>
-<?php require_once(__DIR__ . "/../../partials/flash.php");
+<?php require(__DIR__ . "/partials/flash.php");
